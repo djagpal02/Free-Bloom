@@ -1,4 +1,5 @@
 # Adapted from https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/stable_diffusion/pipeline_stable_diffusion.py
+import copy
 import inspect
 import os.path
 from dataclasses import dataclass
@@ -394,7 +395,6 @@ class SpatioTemporalPipeline(DiffusionPipeline):
         if init_text_embedding is not None:
             text_embeddings[video_length:] = init_text_embedding
 
-
         # Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps, device=device)
         timesteps = self.scheduler.timesteps
@@ -481,7 +481,6 @@ class SpatioTemporalPipeline(DiffusionPipeline):
 
         return SpatioTemporalPipelineOutput(videos=video)
 
-
     def forward_to_t(self, latents_0, t, noise, text_embeddings):
         noisy_latents = self.noise_scheduler.add_noise(latents_0, noise, t)
 
@@ -489,3 +488,111 @@ class SpatioTemporalPipeline(DiffusionPipeline):
         model_pred = self.unet(noisy_latents, t, text_embeddings).sample
         return model_pred
 
+    def interpolate_between_two_frames(
+            self,
+            samples,
+            x_noise,
+            rand_ratio,
+            where,
+            prompt: Union[str, List[str]],
+            k=3,
+            height: Optional[int] = None,
+            width: Optional[int] = None,
+            num_inference_steps: int = 50,
+            guidance_scale: float = 7.5,
+            negative_prompt: Optional[Union[str, List[str]]] = None,
+            num_videos_per_prompt: Optional[int] = 1,
+            eta: float = 0.0,
+            generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
+            output_type: Optional[str] = "tensor",
+            return_dict: bool = True,
+            callback: Optional[Callable[[int, int, torch.FloatTensor], None]] = None,
+            callback_steps: Optional[int] = 1,
+            base_noise=None,
+            text_embedding=None,
+            **kwargs):
+        if text_embedding is None:
+            text_embeddings = self._encode_prompt(prompt, x_noise.device, num_videos_per_prompt, 0, None)
+        else:
+            text_embeddings = text_embedding
+        prompt_temp = copy.deepcopy(prompt)
+
+        times = 0
+        k = k
+        fixed_original_idx = where
+        while times < k:
+            if not isinstance(samples, torch.Tensor):
+                samples = samples[0]
+
+            inner_step = self.controller.latents_store
+            if times == 0:
+                for key, value in inner_step.items():
+                    inner_step[key] = value[:, :, fixed_original_idx]
+
+            b, c, f, _, __ = samples.shape
+            dist_list = []
+            for i in range(f - 1):
+                dist_list.append(torch.nn.functional.mse_loss(samples[:, :, i + 1], samples[:, :, i]))
+            dist = torch.tensor(dist_list)
+            num_insert = 1
+            value, idx = torch.topk(dist, k=num_insert)
+            tgt_video_length = num_insert + f
+
+            idx = sorted(idx)
+            tgt_idx = [id + 1 + i for i, id in enumerate(idx)]
+
+            original_idx = [i for i in range(tgt_video_length) if i not in tgt_idx]
+            prompt_after_inner = []
+            x_temp = []
+            text_embeddings_temp = []
+            prompt_i = 0
+            for i in range(tgt_video_length):
+                if i in tgt_idx:
+                    prompt_after_inner.append('')
+                    search_idx = sorted(original_idx + [i])
+                    find = search_idx.index(i)
+                    pre_idx, next_idx = search_idx[find - 1], search_idx[find + 1]
+                    length = next_idx - pre_idx
+
+                    x_temp.append(np.cos(rand_ratio * np.pi / 2) * base_noise[:, :, 0] + np.sin(
+                        rand_ratio * np.pi / 2) * torch.randn_like(base_noise[:, :, 0]))
+                    text_embeddings_temp.append(
+                        (next_idx - i) / length * text_embeddings[prompt_i - 1] + (i - pre_idx) / length *
+                        text_embeddings[prompt_i])
+                else:
+                    prompt_after_inner.append(prompt_temp[prompt_i])
+                    x_temp.append(x_noise[:, :, prompt_i])
+                    text_embeddings_temp.append(text_embeddings[prompt_i])
+                    prompt_i += 1
+
+            inner_idx = tgt_idx
+            prompt_temp = prompt_after_inner
+
+            x_noise = torch.stack(x_temp, dim=2)
+            text_embeddings = torch.stack(text_embeddings_temp, dim=0)
+
+            samples, prompt_embedding = self(prompt_temp,
+                                             tgt_video_length,
+                                             height,
+                                             width,
+                                             num_inference_steps,
+                                             guidance_scale,
+                                             [negative_prompt] * tgt_video_length,
+                                             num_videos_per_prompt,
+                                             eta,
+                                             generator,
+                                             x_noise,
+                                             output_type,
+                                             return_dict,
+                                             callback,
+                                             callback_steps,
+                                             init_text_embedding=text_embeddings,
+                                             inner_idx=inner_idx,
+                                             return_text_embedding=True,
+                                             fixed_latents=copy.deepcopy(inner_step),
+                                             fixed_latents_idx=original_idx,
+                                             **kwargs)
+
+            times += 1
+
+        return samples[0]
