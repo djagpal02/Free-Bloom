@@ -1,90 +1,95 @@
-# Free-Bloom
+# Dockerised Free-Bloom
 
-This repository is the official implementation of [Free-Bloom](https://arxiv.org/abs/2309.14494).
+This repository provides a Dockerised version of the [Free-Bloom](https://github.com/SooLab/Free-Bloom) project.
 
-**[Free-Bloom: Zero-Shot Text-to-Video Generator with LLM Director and LDM Animator](https://arxiv.org/abs/2309.14494)**
+## Original Project
 
-[Hanzhuo Huang∗]() , [Yufan Feng∗](), [Cheng Shi](https://chengshiest.github.io/), [Lan Xu](https://www.xu-lan.com/), [Jingyi Yu](https://vic.shanghaitech.edu.cn/vrvc/en/people/jingyi-yu/), [Sibei Yang†](https://faculty.sist.shanghaitech.edu.cn/yangsibei/)
+For the original codebase and additional information, please refer to the official repository:  
+[Free-Bloom by SooLab](https://github.com/SooLab/Free-Bloom)
 
-*Equal contribution; †Corresponding Author
+## Getting Started
 
-[![arXiv](https://img.shields.io/badge/arXiv-FreeBloom-b31b1b.svg)](https://arxiv.org/abs/2309.14494) ![Pytorch](https://img.shields.io/badge/PyTorch->=1.10.0-Red?logo=pytorch)
+### Prerequisites
 
+- Docker installed on your machine.
+- Access to a compatible GPU (NVIDIA recommended).
 
-![image-20230924124604776](__assets__/teaser.png)
+### Usage
 
-## Setup
+To run the Dockerised version, use the following command:
 
-### Requirements
-```cmd
-conda create -n fb python=3.10
-conda activate fb
-pip install -r requirements.txt
+```bash
+./run.sh <gpu_id>
 ```
 
-Installing [xformers](https://github.com/facebookresearch/xformers) is highly recommended for more efficiency and speed on GPUs. 
-To enable xformers, set `enable_xformers_memory_efficient_attention=True` (default).
+- Replace `<gpu_id>` with the ID of the GPU you want to use.  
+  For example, use `0` for the default GPU.
+- **Note:** Multi-GPU support is not configured, as it was not required for this implementation.
 
+### Customizing Prompts
 
+The file `data/test.json` contains a dictionary of prompts required for the model. Each key represents a **high-level prompt** (describing the overall animation), and the corresponding value is a **list of framewise prompts** (detailing the step-by-step progression of frames).  
 
+Here is an example from `test.json`:
 
-## Usage
-
-### Generate
-```cmd
-python main.py --config configs/flowers.yaml
-```
-
-Change the path of diffusion models to your own for  the `pretrained_model_path` key in config yaml file.
-
-
-
-
-
-## Results
-
-**A Flower is blooming**
-
-<table class="center">
-    <tr>
-    <td><img src="__assets__/flower_bloom.gif"></td>
-    <td><img src="__assets__/Van_Gogh_flower.gif"></td>
-    <td><img src="__assets__/yellow_flower.gif"></td>
-    <td><img src="__assets__/long_video.gif"></td>
-    </tr>
-</table>
-
-
-
-**Volcano eruption**
-
-<table class="center">
-    <tr>
-    <td><img src="__assets__/volcano_eruption1.gif"></td>
-    <td><img src="__assets__/volcano_eruption2.gif"></td>
-    <td><img src="__assets__/volcano_eruption3.gif"></td>
-    <td><img src="__assets__/volcano_eruption4.gif"></td>
-    </tr>
-</table>
-
-**A rainbow is forming**
-<table class="center">
-    <tr>
-    <td><img src="__assets__/rainbow_forming1.gif"></td>
-    <td><img src="__assets__/rainbow_forming2.gif"></td>
-    <td><img src="__assets__/rainbow_forming3.gif"></td>
-    <td><img src="__assets__/rainbow_forming4.gif"></td>
-    </tr>
-</table>
-
-
-## Citation
-
-```
-@article{freebloom,
-	title={Free-Bloom: Zero-Shot Text-to-Video Generator with LLM Director and LDM Animator},
-	author={Huang, Hanzhuo and Feng, Yufan and Shi, Cheng and Xu, Lan and Yu, Jingyi and Yang, Sibei},
-	journal={arXiv preprint arXiv:2309.14494},
-	year={2023}
+```json
+{
+    "A flower blooming from a bud to full bloom over time.": [
+        "A tightly closed flower bud on a green stem.",
+        "The bud begins to swell slightly.",
+        "The bud enlarges, hinting at the petals inside.",
+        "The tip of the bud starts to open slightly.",
+        "Small gaps appear as petals begin to unfurl.",
+        "Petals slowly emerge from the opening bud.",
+        "More petals become visible as the bud opens further.",
+        "The bud opens halfway, revealing vibrant petals.",
+        "Petals continue to spread outward from the bud.",
+        "The bud is now mostly open, with petals extending outward.",
+        "The flower nears full bloom, petals nearly fully extended.",
+        "The flower reaches full bloom with petals fully spread.",
+        "The fully bloomed flower, vibrant and open.",
+        "The flower in full bloom, petals wide open.",
+        "A fully opened flower basking in the sunlight.",
+        "The flower begins to lean slightly, petals fully open.",
+        "Close-up of the fully bloomed flower's center.",
+        "The flower's petals are wide open, displaying vivid colors.",
+        "The flower sways gently with petals open.",
+        "The flower's petals begin to curl slightly at the edges.",
+        "The flower remains in full bloom, colors radiant.",
+        "A side view of the fully bloomed flower.",
+        "The flower stands tall, fully bloomed against the backdrop.",
+        "The fully bloomed flower with petals spread wide open."
+    ]
 }
 ```
+
+### How to Add Your Own Prompts
+
+1. Open the `data/test.json` file in a text editor.
+2. Add a new **high-level prompt** (e.g., `"A tree growing from a seedling to a full tree."`).
+3. Provide a detailed list of **framewise prompts** that describe each step of the transformation.
+
+For example:
+
+```json
+{
+    "A tree growing from a seedling to a full tree.": [
+        "A small seedling emerges from the soil.",
+        "The seedling grows taller with a thin stem.",
+        "Small leaves begin to sprout from the stem.",
+        "The stem thickens and branches start to form.",
+        "Leaves grow larger and become more numerous.",
+        "The branches spread wider as the tree grows taller.",
+        "The tree develops a thicker trunk with visible bark.",
+        "The branches grow denser, with more leaves filling out.",
+        "The tree takes on a fuller shape with vibrant green leaves.",
+        "The fully grown tree stands tall with a broad canopy."
+    ]
+}
+```
+
+Save the file and re-run the script. The output animations will reflect your new prompts and framewise descriptions.
+
+### Model Configuration
+
+The model has been preconfigured with settings optimized to align with the recommendations from the original project.
