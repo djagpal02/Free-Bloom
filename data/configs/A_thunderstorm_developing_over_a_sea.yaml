@@ -1,5 +1,5 @@
-pretrained_model_path: "/data/diffusion_wights/stable-diffusion-v1-5"
-output_dir: "./outputs/A_thunderstorm_developing_over_a_sea"
+pretrained_model_path: "sd-legacy/stable-diffusion-v1-5"
+output_dir: "../output/A_thunderstorm_developing_over_a_sea"
 
 inference_config:
   diversity_rand_ratio: 0.1

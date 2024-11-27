@@ -19,6 +19,20 @@ def save_tensor_img(img, save_path):
     img = Image.fromarray(img.mul(255).byte().numpy().transpose(1, 2, 0))
     img.save(save_path)
 
+def get_pil_grid(videos: torch.Tensor, rescale=False, n_rows=4):
+    videos = rearrange(videos, "b c t h w -> t b c h w")
+    outputs = []
+    for x in videos:
+        x = torchvision.utils.make_grid(x, nrow=n_rows)
+        x = x.transpose(0, 1).transpose(1, 2).squeeze(-1)
+        if rescale:
+            x = (x + 1.0) / 2.0  # -1,1 -> 0,1
+        x = (x * 255).numpy().astype(np.uint8)
+        outputs.append(x)
+
+    # Convert to PIL images
+    pil_images = [Image.fromarray(x) for x in outputs]
+    return pil_images
 
 def save_videos_grid(videos: torch.Tensor, path: str, rescale=False, n_rows=4, fps=8):
     videos = rearrange(videos, "b c t h w -> t b c h w")

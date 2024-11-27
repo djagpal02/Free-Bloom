@@ -1,6 +1,6 @@
 # A cluster of flowers blooms
-pretrained_model_path: "/data/diffusion_wights/stable-diffusion-v1-5"
-output_dir: "./outputs/flowers"
+pretrained_model_path: "sd-legacy/stable-diffusion-v1-5"
+output_dir: "../output"
 
 inference_config:
   diversity_rand_ratio: 0.1

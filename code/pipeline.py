@@ -5,6 +5,7 @@ import logging
 import os
 from typing import Dict, Optional
 
+from PIL import Image
 import diffusers
 import numpy as np
 import torch
@@ -20,7 +21,7 @@ from transformers import CLIPTextModel, CLIPTokenizer
 
 from freebloom.models.unet import UNet3DConditionModel
 from freebloom.pipelines.pipeline_spatio_temporal import SpatioTemporalPipeline
-from freebloom.util import save_videos_grid, save_videos_per_frames_grid
+from freebloom.util import save_videos_grid, save_videos_per_frames_grid, get_pil_grid
 
 logger = get_logger(__name__, log_level="INFO")
 
@@ -59,13 +60,6 @@ def main(
     if seed is not None:
         set_seed(seed)
 
-    # Handle the output folder creation
-    if accelerator.is_main_process:
-        now = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-        output_dir = os.path.join(output_dir, now)
-        os.makedirs(output_dir, exist_ok=True)
-        os.makedirs(f"{output_dir}/samples", exist_ok=True)
-        OmegaConf.save(config, os.path.join(output_dir, 'config.yaml'))
 
     # Load scheduler, tokenizer and models.
     tokenizer = CLIPTokenizer.from_pretrained(pretrained_model_path, subfolder="tokenizer")
@@ -165,18 +159,17 @@ def main(
         torch.cuda.empty_cache()
 
         samples.append(key_frames[0])
+
     samples = torch.concat(samples)
-    save_path = f"{output_dir}/samples/sample.gif"
-    save_videos_grid(samples, save_path, n_rows=6)
-    save_videos_per_frames_grid(samples, f'{output_dir}/img_samples', n_rows=6)
-    logger.info(f"Saved samples to {save_path}")
+    return get_pil_grid(samples)
 
 
-if __name__ == "__main__":
+def run_pipeline(prompts):
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--config", type=str, default="./configs/flowers.yaml")
+    parser.add_argument("--config", type=str, default="../data/configs/flowers.yaml")
     args = parser.parse_args()
 
     conf = OmegaConf.load(args.config)
-    main(**conf)
+    conf['validation_data']['prompts'] = prompts
+    return main(**conf)

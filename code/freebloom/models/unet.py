@@ -422,14 +422,11 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
 
     @classmethod
     def from_pretrained_2d(cls, pretrained_model_path, subfolder=None):
-        if subfolder is not None:
-            pretrained_model_path = os.path.join(pretrained_model_path, subfolder)
-
-        config_file = os.path.join(pretrained_model_path, 'config.json')
-        if not os.path.isfile(config_file):
-            raise RuntimeError(f"{config_file} does not exist")
-        with open(config_file, "r") as f:
+        
+        config = '../data/unet_config.json'
+        with open(config, "r") as f:
             config = json.load(f)
+
         config["_class_name"] = cls.__name__
         config["down_block_types"] = [
             "CrossAttnDownBlock3D",
@@ -448,9 +445,11 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
 
         from diffusers.utils import WEIGHTS_NAME
         model = cls.from_config(config)
-        model_file = os.path.join(pretrained_model_path, WEIGHTS_NAME)
-        if not os.path.isfile(model_file):
-            raise RuntimeError(f"{model_file} does not exist")
+        from huggingface_hub import hf_hub_download
+        try:
+            model_file = hf_hub_download(repo_id=pretrained_model_path, filename=WEIGHTS_NAME, subfolder=subfolder)
+        except Exception as e:
+            raise RuntimeError(f"Failed to download model weights: {e}")
         state_dict = torch.load(model_file, map_location="cpu")
         # origin_state_dict = torch.load('/root/code/Tune-A-Video/checkpoints/stable-diffusion-v1-4/unet/diffusion_pytorch_model.bin', map_location='cpu')
         for k, v in model.state_dict().items():

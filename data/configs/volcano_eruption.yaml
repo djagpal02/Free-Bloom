@@ -1,5 +1,5 @@
-pretrained_model_path: "/data/diffusion_wights/stable-diffusion-v1-5"
-output_dir: "./outputs/volcano_eruption_3"
+pretrained_model_path: "sd-legacy/stable-diffusion-v1-5"
+output_dir: "../output/volcano_eruption_3"
 
 inference_config:
   diversity_rand_ratio: 0.1
